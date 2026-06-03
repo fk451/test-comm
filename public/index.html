@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Hata Kodu Yönetim Paneli</title>
+    <!-- Tailwind CSS CDN + Google Fonts (Inter) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome 6 (Free Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Tailwind konfigürasyonu: yumuşak gölgeler ve varsayılan renkleri koruyan eklemeler -->
+    <style>
+        /* Özel yumuşak animasyonlar ve scroll davranışı */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            background-color: #F8FAFE;
+        }
+        /* Kaydırma animasyonu (kartlar yukarı hafif gelir) */
+        .card-animate {
+            animation: fadeSlideUp 0.3s ease-out forwards;
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        @keyframes fadeSlideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* geçiş efekti sayfalar arası */
+        .page-transition {
+            transition: opacity 0.2s ease-in-out;
+        }
+        /* scrollbar ince ve modern */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        /* aktif alt menü stili */
+        .nav-active {
+            color: #0F67FF;
+            font-weight: 500;
+        }
+        .nav-active i {
+            color: #0F67FF;
+        }
+        /* kart hover yumuşaklığı */
+        .error-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .error-card:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="bg-[#F8FAFE] antialiased">
+
+    <!-- ANA UYGULAMA KAPSAMI (mobil first, max-width container) -->
+    <div class="max-w-md mx-auto bg-[#F8FAFE] min-h-screen relative shadow-xl overflow-hidden">
+        
+        <!-- ============================ SAYFA 1: ANA LİSTE (Hata Kodları Listesi) ============================ -->
+        <div id="homePage" class="page-transition w-full h-full flex flex-col pb-20">
+            <!-- Üst Başlık Çubuğu: Hata Kodları + bildirim ikonu -->
+            <div class="px-5 pt-6 pb-2 flex justify-between items-center bg-transparent">
+                <h1 class="text-2xl font-bold tracking-tight text-slate-800">Hata Kodları</h1>
+                <div class="relative">
+                    <i class="fa-regular fa-bell text-xl text-slate-500 bg-white p-2 rounded-full shadow-sm"></i>
+                    <!-- küçük bildirim noktası -->
+                    <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+                </div>
+            </div>
+            
+            <!-- alt başlık / istatistik özeti gibi hafif bilgi -->
+            <div class="px-5 py-1 text-xs text-slate-400 flex justify-between items-center">
+                <span id='time-line' ><i class="fa-regular fa-clock mr-1"></i> Son 30 gün</span>
+                <span class="bg-white px-2 py-0.5 rounded-full shadow-sm">9 aktif hata</span>
+            </div>
+            
+            <!-- Hata Kartları Listesi -->
+            <div id="errorListContainer" class="px-4 mt-3 space-y-4 pb-4">
+                <!-- Kartlar dinamik JS ile eklenecek, ancak statik yapıda da önceden 8-10 kart içeriği için JS'te data oluşturup render edeceğiz -->
+            </div>
+            <!-- küçük bilgilendirme alanı -->
+            <div class="text-center text-xs text-slate-400 py-2">✓ Gerçek zamanlı izleme</div>
+        </div>
+        
+        <!-- ============================ SAYFA 2: DETAY SAYFASI (başlangıçta gizli) ============================ -->
+        <div id="detailPage" class="page-transition w-full h-full flex flex-col pb-20 hidden">
+            <!-- Üst kısım: geri butonu + başlık -->
+            <div class="px-4 pt-6 pb-3 flex items-center gap-4 bg-white/50 backdrop-blur-sm sticky top-0 z-10 border-b border-gray-100">
+                <button id="backButton" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-slate-700 hover:bg-gray-200 transition">
+                    <i class="fas fa-arrow-left text-lg"></i>
+                </button>
+                <h2 class="text-xl font-semibold text-slate-800">Hata Detayı</h2>
+            </div>
+            
+            <!-- Detay içerik dinamik olarak doldurulacak -->
+            <div id="detailContent" class="px-5 py-6 space-y-6">
+                <!-- buraya JS ile veri basılacak -->
+            </div>
+            
+            <!-- alt buton (sabit değil ama mobilde yukarı kaydırmalı) -->
+            <div class="px-5 pb-8 mt-2">
+                <button id="supportButton" class="w-full py-4 bg-[#0F67FF] hover:bg-[#0E5AE0] text-white font-semibold rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+                    <i class="fa-regular fa-message"></i> Destek Al
+                </button>
+            </div>
+        </div>
+        
+        <!-- ============================ ALT NAVİGASYON ÇUBUĞU (Bottom Navigation Bar) ============================ -->
+        <div class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-lg border-t border-gray-200/80 shadow-xl rounded-t-3xl py-2 px-4 z-20">
+            <div class="flex justify-around items-center">
+                <!-- Ana Sayfa butonu -->
+                <button id="navHome" class="nav-btn flex flex-col items-center gap-1 text-slate-500 transition-colors py-1 px-3 rounded-2xl">
+                    <i class="fas fa-home text-xl"></i>
+                    <span class="text-[11px] font-medium">Ana Sayfa</span>
+                </button>
+                <!-- İstatistikler butonu -->
+                <button id="navStats" class="nav-btn flex flex-col items-center gap-1 text-slate-500 transition-colors py-1 px-3 rounded-2xl">
+                    <i class="fas fa-chart-line text-xl"></i>
+                    <span class="text-[11px] font-medium">İstatistikler</span>
+                </button>
+                <!-- Ayarlar butonu -->
+                <button id="navSettings" class="nav-btn flex flex-col items-center gap-1 text-slate-500 transition-colors py-1 px-3 rounded-2xl">
+                    <i class="fas fa-sliders-h text-xl"></i>
+                    <span class="text-[11px] font-medium">Ayarlar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ======================== ÖRNEK HATA VERİLERİ (en az 8-10 adet) ========================
+        const errorData = [
+            { id: 1, code: "E-101", machineName: "CNC Router 3000", severity: "Kritik", severityType: "critical", datetime: "2025-02-18 14:32:12", description: "Spindle motor aşırı akım çekiyor. Termik koruma devreye girdi. Motor sargılarında kısa devre olabilir.", solution: ["Spindle sürücü parametrelerini kontrol edin.", "Motor bağlantı kablolarını gözden geçirin.", "Soğutma fanının çalıştığından emin olun."] },
+            { id: 2, code: "E-205", machineName: "Enjeksiyon Pres B-12", severity: "Kritik", severityType: "critical", datetime: "2025-02-18 09:15:47", description: "Hidrolik yağ sıcaklığı 75°C üzerine çıktı. Soğutma sisteminde arıza tespit edildi.", solution: ["Hidrolik ünitenin yağ seviyesini kontrol edin.", "Radyatör ve fan ünitesini temizleyin.", "Termostat valfini test edin."] },
+            { id: 3, code: "W-042", machineName: "Paketleme Robotu X4", severity: "Uyarı", severityType: "warning", datetime: "2025-02-17 22:10:03", description: "Vakum seviyesi beklenen eşiğin altına düştü. Ürün sızdırmazlığı etkilenebilir.", solution: ["Vakum pompası contalarını kontrol edin.", "Emme ağzındaki filtreyi temizleyin.", "Hortum bağlantılarını sıkın."] },
+            { id: 4, code: "I-103", machineName: "Lazer Kesim LC-900", severity: "Bilgi", severityType: "info", datetime: "2025-02-17 15:45:22", description: "Kesim parametreleri standart değerlerden %5 sapma gösteriyor. Kalibrasyon önerilir.", solution: ["Lazer güç kalibrasyonu yapın.", "Odak lensini kontrol edin.", "Referans malzeme ile test kesimi yapın."] },
+            { id: 5, code: "E-318", machineName: "Endüstriyel Fırın IF-7", severity: "Kritik", severityType: "critical", datetime: "2025-02-16 11:23:09", description: "Ana termokupl arızası, sıcaklık kontrolü sağlanamıyor. Proses durduruldu.", solution: ["Termokupl sensörünü değiştirin.", "Kontrol kartı girişlerini test edin.", "Yedek termokupl ile doğrulama yapın."] },
+            { id: 6, code: "W-089", machineName: "Montaj Hattı MH-200", severity: "Uyarı", severityType: "warning", datetime: "2025-02-16 08:07:34", description: "Pnömatik basınç alt limitlere yaklaştı. Kaçak olabilir.", solution: ["Hava kaçaklarını tespit etmek için sabunlu su testi yapın.", "Regülatör ve filtre ünitesini kontrol edin.", "Kompresör devreye girme sıklığını izleyin."] },
+            { id: 7, code: "E-507", machineName: "Vidalama Robotu VR-2", severity: "Kritik", severityType: "critical", datetime: "2025-02-15 17:52:19", description: "Tork sensörü bağlantı hatası. Vidalama işlemi güvenli değil.", solution: ["Sensör kablosunu kontrol edin.", "Sürücü kartını resetleyin.", "Yazılım kalibrasyonunu yeniden başlatın."] },
+            { id: 8, code: "I-211", machineName: "3D Yazıcı Pro M", severity: "Bilgi", severityType: "info", datetime: "2025-02-15 10:30:45", description: "Malzeme bitiş uyarısı. Filament sarımında azalma tespit edildi.", solution: ["Yeni filament takın.", "Malzeme sensörünü temizleyin.", "Yazılımdan sarım miktarını sıfırlayın."] },
+            { id: 9, code: "W-076", machineName: "Soğutma Grubu CH-500", severity: "Uyarı", severityType: "warning", datetime: "2025-02-14 23:12:56", description: "Kondenser basıncı yüksek. Fan devri yetersiz veya tıkanma.", solution: ["Kondenser bobinlerini temizleyin.", "Fan motorunun çalıştığını kontrol edin.", "Gaz basıncı ve şarjını test edin."] },
+            { id: 10, code: "E-901", machineName: "Hassas Taşlama TE-6", severity: "Kritik", severityType: "critical", datetime: "2025-02-14 06:14:22", description: "Mil titreşim limitlerin üzerinde. Yatak arızası riski.", solution: ["Mil yataklarını ve yağlamasını kontrol edin.", "Kayış gerginliğini ayarlayın.", "Titreşim ölçüm cihazı ile detaylı analiz yapın."] },
+			
+			  { id: 11, code: "E-901", machineName: "Hassas Taşlama TE-6", severity: "Kritik", severityType: "critical", datetime: "2025-02-14 06:14:22", description: "Mil titreşim limitlerin üzerinde. Yatak arızası riski.", solution: ["Mil yataklarını ve yağlamasını kontrol edin.", "Kayış gerginliğini ayarlayın.", "Titreşim ölçüm cihazı ile detaylı analiz yapın."] },
+			{ id: 12, code: "E-901", machineName: "Hassas Taşlama TE-6", severity: "Kritik", severityType: "critical", datetime: "2025-02-14 06:14:22", description: "Mil titreşim limitlerin üzerinde. Yatak arızası riski.", solution: ["Mil yataklarını ve yağlamasını kontrol edin.", "Kayış gerginliğini ayarlayın.", "Titreşim ölçüm cihazı ile detaylı analiz yapın."] },
+			  { id: 13, code: "E-901", machineName: "Hassas Taşlama TE-6", severity: "Kritik", severityType: "critical", datetime: "2025-02-14 06:14:22", description: "Mil titreşim limitlerin üzerinde. Yatak arızası riski.", solution: ["Mil yataklarını ve yağlamasını kontrol edin.", "Kayış gerginliğini ayarlayın.", "Titreşim ölçüm cihazı ile detaylı analiz yapın."] }
+			  ,
+			    { id: 14, code: "E-901", machineName: "Hassas Taşlama TE-6", severity: "Kritik", severityType: "critical", datetime: "2025-02-14 06:14:22", description: "Mil titreşim limitlerin üzerinde. Yatak arızası riski.", solution: ["Mil yataklarını ve yağlamasını kontrol edin.", "Kayış gerginliğini ayarlayın.", "Titreşim ölçüm cihazı ile detaylı analiz yapın."] }
+			  
+			
+        ];
+        
+        // severity renk eşlemesi (rozet + kart kenar rengi)
+        function getSeverityStyle(type) {
+            switch(type) {
+                case 'critical': return { badgeBg: 'bg-red-100', badgeText: 'text-red-700', borderLeft: 'border-l-4 border-red-500', badgeLabel: 'Kritik' };
+                case 'warning': return { badgeBg: 'bg-amber-100', badgeText: 'text-amber-700', borderLeft: 'border-l-4 border-amber-400', badgeLabel: 'Uyarı' };
+                case 'info': return { badgeBg: 'bg-blue-100', badgeText: 'text-blue-700', borderLeft: 'border-l-4 border-blue-400', badgeLabel: 'Bilgi' };
+                default: return { badgeBg: 'bg-gray-100', badgeText: 'text-gray-700', borderLeft: 'border-l-4 border-gray-400', badgeLabel: 'Bilgi' };
+            }
+        }
+        
+        // Kart listesini render etme (ana sayfa)
+        function renderHomePage() {
+            const container = document.getElementById('errorListContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            errorData.forEach((error, idx) => {
+                const severityStyle = getSeverityStyle(error.severityType);
+                const card = document.createElement('div');
+                card.className = `error-card bg-white rounded-2xl shadow-md p-4 cursor-pointer transition-all duration-200 ${severityStyle.borderLeft} hover:shadow-lg`;
+                card.setAttribute('data-id', error.id);
+                // animasyon gecikmesi ile yukarı kayma efekti
+                card.style.animationDelay = `${idx * 0.03}s`;
+                card.classList.add('card-animate');
+                
+                // İçerik oluştur
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span id="m-name-${idx}" class="text-2xl font-bold tracking-tight text-slate-800">
+								<!--${error.code}-->
+								</span>
+                                
+								
+								<span id="m-err-${idx}" class="text-[11px] font-semibold px-2 py-1 rounded-full <!--${severityStyle.badgeBg} 
+								
+								${severityStyle.badgeText}-->">
+								
+								<!--${severityStyle.badgeLabel}-->
+								</span>
+                            </div>
+							<!--
+                            <p class="text-slate-600 font-medium text-sm mt-1.5">${error.machineName}</p>
+							<div class="flex items-center gap-1 mt-2 text-slate-400 text-xs">
+                                <i class="far fa-calendar-alt mr-0.5"></i> ${error.datetime}
+                            </div>
+							-->
+                        </div>
+                        <div class="pl-2">
+                            <i class="fas fa-chevron-right text-slate-300 text-lg"></i>
+                        </div>
+                    </div>
+                `;
+                // kart tıklama ile detay sayfasına geç
+                card.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showDetailPage(error.id);
+                });
+                container.appendChild(card);
+            });
+        }
+        
+        // Detay sayfasını ID'ye göre oluşturup göster
+        let currentErrorId = null;
+        function showDetailPage(errorId) {
+            const error = errorData.find(e => e.id === errorId);
+            if(!error) return;
+            currentErrorId = error.id;
+            const severityStyle = getSeverityStyle(error.severityType);
+            // Renk: durum rengi (büyük hata kodu ortalanmış durum renginde)
+            let accentColorClass = '';
+            if(error.severityType === 'critical') accentColorClass = 'text-red-600';
+            else if(error.severityType === 'warning') accentColorClass = 'text-amber-600';
+            else accentColorClass = 'text-blue-600';
+            
+            const detailContainer = document.getElementById('detailContent');
+            if(detailContainer) {
+                detailContainer.innerHTML = `
+                    <!-- Büyük hata kodu ortalanmış ve durum renginde -->
+                    <div class="flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm p-6">
+                        <span class="text-6xl font-black ${accentColorClass} tracking-tight">${error.code}</span>
+                        <div class="mt-2 flex gap-2">
+                            <span class="text-xs font-semibold px-3 py-1 rounded-full ${severityStyle.badgeBg} ${severityStyle.badgeText}">${severityStyle.badgeLabel}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Makine adı ve model -->
+                    <div class="bg-white rounded-2xl shadow-sm p-5 space-y-2">
+                        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wide">Makine Bilgisi</h3>
+                        <p class="text-xl font-bold text-slate-800">${error.machineName}</p>
+                        <p class="text-slate-500 text-sm">Model: ${error.machineName.includes('CNC') ? 'CNC-3X00' : (error.machineName.includes('Enjeksiyon') ? 'EP-M12' : (error.machineName.includes('Robot') ? 'RBT-X4S' : 'Endüstriyel Seri'))} / Rev.2</p>
+                    </div>
+                    
+                    <!-- Hata açıklaması kartı -->
+                    <div class="bg-white rounded-2xl shadow-sm p-5 space-y-2">
+                        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wide"><i class="fas fa-info-circle mr-1"></i> Hata Açıklaması</h3>
+                        <p class="text-slate-700 leading-relaxed">${error.description}</p>
+                        <div class="pt-1 text-xs text-slate-400 flex items-center gap-2"><i class="far fa-clock"></i> Oluşma zamanı: ${error.datetime}</div>
+                    </div>
+                    
+                    <!-- Çözüm Önerileri kartı (maddeler halinde) -->
+                    <div class="bg-white rounded-2xl shadow-sm p-5 space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wide"><i class="fas fa-tools mr-1"></i> Çözüm Önerileri</h3>
+                        <ul class="space-y-2.5">
+                            ${error.solution.map((step, idx) => `<li class="flex gap-2 text-slate-700 text-sm"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0 mt-0.5">${idx+1}</span><span>${step}</span></li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            // Sayfa geçişi: ana sayfayı gizle, detayı göster
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('detailPage').classList.remove('hidden');
+            // sayfa kaydırmasını en üste al
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Geri butonu ile ana listeye dönüş
+        function goBackToHome() {
+            document.getElementById('detailPage').classList.add('hidden');
+            document.getElementById('homePage').classList.remove('hidden');
+            // Ana sayfa kart animasyonu yeniden tetiklemek için gerek yok ama istersen rerender olabilir
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // aktif navigasyon durumunu güncelle
+            setActiveNav('home');
+        }
+        
+        // alt navigasyon butonları için 'aktif' durum güncellemesi ve sayfa simülasyonu
+        function setActiveNav(active) {
+            const navHome = document.getElementById('navHome');
+            const navStats = document.getElementById('navStats');
+            const navSettings = document.getElementById('navSettings');
+            // reset
+            [navHome, navStats, navSettings].forEach(btn => {
+                btn.classList.remove('nav-active');
+                btn.classList.add('text-slate-500');
+                btn.querySelector('i')?.classList.remove('text-[#0F67FF]');
+                btn.querySelector('i')?.classList.add('text-slate-500');
+            });
+            if(active === 'home') {
+                navHome.classList.add('nav-active');
+                navHome.querySelector('i')?.classList.add('text-[#0F67FF]');
+                navHome.querySelector('i')?.classList.remove('text-slate-500');
+            } else if(active === 'stats') {
+                navStats.classList.add('nav-active');
+                navStats.querySelector('i')?.classList.add('text-[#0F67FF]');
+                navStats.querySelector('i')?.classList.remove('text-slate-500');
+                // istatistik sayfası simülasyonu (basit toast benzeri)
+                alert("📊");
+                // ek olarak aktif sayfayı home'a çevirelim (istatistik sayfası ayrı bir sayfa olmadığı için mevcut sayfada kal ama kullanıcıya demo uyarısı)
+                // ancak UX gereği tekrar anasayfaya dönüş yapabiliriz. Yine de demo prototip olduğu için anasayfada kalalım.
+                // isterseniz aktif simgesini home yapalım çünkü gerçek sayfa yok.
+                setActiveNav('home');
+            } else if(active === 'settings') {
+                navSettings.classList.add('nav-active');
+                navSettings.querySelector('i')?.classList.add('text-[#0F67FF]');
+                navSettings.querySelector('i')?.classList.remove('text-slate-500');
+                alert("⚙️");
+                setActiveNav('home');
+            }
+        }
+        
+        // sayfa navigasyonları ve event listener'lar
+        function initNavigation() {
+            const backBtn = document.getElementById('backButton');
+            if(backBtn) backBtn.addEventListener('click', goBackToHome);
+            
+            const navHome = document.getElementById('navHome');
+            const navStats = document.getElementById('navStats');
+            const navSettings = document.getElementById('navSettings');
+            
+            navHome.addEventListener('click', () => {
+                // eğer detay sayfası açıksa onu kapatıp anasayfaya dön
+                if(!document.getElementById('homePage').classList.contains('hidden')) {
+                    setActiveNav('home');
+                } else {
+                    goBackToHome();
+                    setActiveNav('home');
+                }
+            });
+            navStats.addEventListener('click', () => {
+                setActiveNav('stats');
+            });
+            navSettings.addEventListener('click', () => {
+                setActiveNav('settings');
+            });
+            
+            // destek al butonu basit feedback
+            const supportBtn = document.getElementById('supportButton');
+            if(supportBtn) {
+                supportBtn.addEventListener('click', () => {
+                    alert("📞 Destek talebi oluşturuluyor. Teknik servis ekibiyle iletişime geçilecek. (Demo)");
+                });
+            }
+        }
+        
+        // bildirim/ bilgi ikonu tıklaması demo mesaj
+        function setupHeaderIcon() {
+            const bellIcon = document.querySelector('.fa-bell')?.parentElement;
+            if(bellIcon) {
+                bellIcon.addEventListener('click', () => {
+                    alert("🔔 ");
+                });
+            }
+        }
+        
+        // ana ekran yüklendiğinde renderHome, navigasyonu başlat
+        renderHomePage();
+        initNavigation();
+        setupHeaderIcon();
+        // mobil için varsayılan home sayfası görünür, aktif nav home yap
+        setActiveNav('home');
+        
+        // İsteğe bağlı: demo için sağ üst bilgi ikonu (zorunlu değil ama mevcut)
+        // ekstra tasarım: kartların animasyonu için tüm kartlar başarıyla renderlanır.
+        // Ayrıca hata kodlarının durumuna göre kart kenar rengi border-left ile sağlandı, rozet renkleri.
+        // Alt navigation tamamen işlevsel, sayfalar arası geçiş (İstatistikler ve Ayarlar demo mesajı içerir)
+        // Tuya Smart benzeri yuvarlak hatlı kartlar, soft gölgeler, modern tasarım.
+        // Detay sayfasında geri butonu tam çalışır.
+		
+		
+		///////////////////////////////////////////////////////////////////////////////
+		// fetch islemleri
+		getStats();
+		setInterval(getStats, 5000);
+		
+	function  getStats(){
+		fetch('http://teknowin.com/alarm/ajax/device/stats.php')
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('İstek başarısız oldu');
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Gelen veri:', data);
+    console.log('time-line:', data.response.created_at);
+	
+	document.getElementById(`time-line`).textContent = data.response.created_at;
+
+	
+	[...data.response.ct].forEach((char, index) => {
+		console.log('MK:'+ index, char);
+		if(char==0){
+			
+			document.getElementById(`m-err-${index}`).textContent = "Arıza Yok";
+		}
+		else{
+
+			document.getElementById(`m-err-${index}`).textContent = "Arızalı";
+		}
+
+
+if(index==0)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Bottom";
+}
+if(index==1)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Top";
+}
+if(index==2)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Needle";
+}
+if(index==3)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Break";
+}
+if(index==4)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Air";
+}
+if(index==5)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Oil";
+}
+if(index==6)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Kapı/NC";
+}
+if(index==7)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Inverter";
+}	
+if(index==8)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Top doldu";
+}
+if(index==9)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Çalısma Durumu";
+}
+if(index==10)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Start butonu";
+}
+
+if(index==11)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Yedek";
+}
+if(index==12)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Yedek";
+}
+if(index==13)
+{
+			
+	document.getElementById(`m-name-${index}`).textContent = "Yedek";
+}
+
+	
+	});
+  })
+  .catch(error => {
+    console.error('Hata:', error);
+  });
+}
+    </script>
+</body>
+</html>
