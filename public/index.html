@@ -394,9 +394,9 @@
   })
   .then(data => {
     console.log('Gelen veri:', data);
-    console.log('time-line:', data.response.created_at);
+    //console.log('time-line:', data.response.created_at);
 	
-	document.getElementById(`time-line`).textContent = data.response.created_at;
+	//document.getElementById(`time-line`).textContent = data.response.created_at;
 
 	
 	[...data.response.ct].forEach((char, index) => {
