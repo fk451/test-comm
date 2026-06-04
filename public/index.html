@@ -385,7 +385,7 @@
 		setInterval(getStats, 5000);
 		
 	function  getStats(){
-		fetch('http://teknowin.com/alarm/ajax/device/stats.php')
+		fetch('https://test-comm.onrender.com/api/status')
   .then(response => {
     if (!response.ok) {
       throw new Error('İstek başarısız oldu');
