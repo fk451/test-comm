@@ -6,6 +6,11 @@ const PORT = 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.use(express.json());
+
+
+app.use('/api', require('./routes/api'));
+
 /*
 app.get('/', (req, res) => {
     res.send('Merhaba Express!');
